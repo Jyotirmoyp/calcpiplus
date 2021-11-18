@@ -1,0 +1,103 @@
+#!/bin/bash
+
+model=${1-}
+fname=${2-ehat}
+odir=${3-aniso}
+plot=1
+dfile=d65.dat
+
+
+
+if [ $plot -eq 0 ];then
+  cd $model/calcpidata
+  mkdir aniso
+  cd ../..
+  i=1
+  while [ $i -le 65 ]
+  do 
+    d=`oneline $i $dfile`
+    echo working on $d depth
+    paste $model/calcpidata/in.0.2900 $model/calcpidata/ehat.2900 | gawk \
+    '{print $2*f, 90-$1*f, $3, $6, $7, $8}' f=57.295779513082320 > $model/calcpidata/$odir/tmp.a
+    
+    paste $model/calcpidata/in.0.2900 $model/calcpidata/pi.2900 | gawk \
+    '{print $2*f, 90-$1*f, $3, $6}' f=57.295779513082320 > $model/calcpidata/$odir/tmp.pi
+    
+    gawk '{if($3==d) print $1, $2, $3, $4, $5, $6}' \
+    d=$d $model/calcpidata/$odir/tmp.a > $model/calcpidata/$odir/anisotropy.$d.v
+    
+    gawk '{if($3==d && $4!="Infinity") print $1, $2, log($4)/log(10)}' \
+    d=$d $model/calcpidata/$odir/tmp.pi > $model/calcpidata/$odir/pi.$d.xyz
+
+    gawk '{print $1,$2,atan2(-$5,$4)*(180/3.14159), 0.3}' \
+    $model/calcpidata/$odir/anisotropy.$d.v > $model/calcpidata/ehat.$i.gbl
+    
+    surface $model/calcpidata/$odir/pi.$d.xyz -G$model/calcpidata/pi.$i.grd -Rd -I0.2 -T0.25 -Lud -Lld
+
+  ((i=i+1))
+  done
+
+
+elif [ $plot -eq 1 ];then
+   
+  geo=0
+
+  if [ $geo -eq 1 ];then
+   fname=ehat.na
+   proj="-R-150/-60/20/80 -JW8i -B30 -W1 -A10000"
+   n=1
+  elif [ $geo -eq 2 ];then
+   fname=ehat.sc
+   proj="-R-10/60/40/80 -JW8i -B30 -W1 -A10000"
+   n=1
+  elif [ $geo -eq 3 ];then
+   fname=ehat.in
+   proj="-R30/110/0/40 -JW8i -B10 -W1 -A10000"
+   n=1
+  elif [ $geo -eq 5 ];then
+   fname=ehat.au
+   proj="-R110/160/-40/0 -JW5i -B10 -W1 -A10000"   
+  elif [ $geo -eq 0 ];then
+   fname=ehat
+   proj="-Rd -Jx0.025id -B30 -W1 -K -A10000"
+   n=1
+  fi
+
+    i=64
+    d=`oneline $i $dfile`
+    
+    while [ $i -le 64 ]
+    do 
+
+      gawk '{print $1,$2,$3}' $model/calcpidata/ehat.$i.gbl | \
+        surface -Rd -G$model/calcpidata/ehat.azi.$i.grd -Rd -I2 -T0.25
+      
+      grd2xyz  $model/calcpidata/ehat.azi.$i.grd > $model/calcpidata/ehat.azi.$i.xyz
+    
+
+      echo plotting
+
+
+
+     #pscoast -Rd -JW8i -B30 -W1 -K -A10000 > $model/calcpidata/$fname.$i.ps
+     pscoast $proj -K > $model/calcpidata/$fname.$i.ps
+     #pscoast -Rd -Jx0.025id -B30 -W1 -K -A10000 > $model/calcpidata/$fname.$i.ps
+     makecpt -T-1/2/0.1 -Cseis  -I -D > d.cpt
+     grdimage $model/calcpidata/pi.$i.grd -Cd.cpt -R -J -O -K >> $model/calcpidata/$fname.$i.ps
+     #pscoast -Rd -Jx0.025id -B30 -W1 -K -A10000> ehat.$d.ps
+     gawk '((NR % n) == 0){print $1, $2, $3, 0.3}' n=$n $model/calcpidata/ehat.azi.$i.xyz > $model/calcpidata/ehat.mod
+     pscoast $proj -O -K >> $model/calcpidata/$fname.$i.ps
+     psxy $model/calcpidata/ehat.mod -J -R -A100000 -B -W -O -K -Sv0.01/0/0 >> $model/calcpidata/$fname.$i.ps
+     psscale -D4i/-0.45i/4i/0.2ih -Cd.cpt -O -K -B1::/:"log pi": >> $model/calcpidata/$fname.$i.ps
+
+
+     echo 3 -0.8 25 0 0 CB $i level | pstext -Wwhite -R0/1/0/1 -JX7/3 -K -O -N >> $model/calcpidata/$fname.$i.ps
+
+     rm $model/calcpidata/ehat.mod
+     #ps2pdf $model/calcpidata/$fname.$i.ps $model/calcpidata/$fname.$i.pdf
+     ps2eps  $model/calcpidata/$fname.$i.ps -f
+     
+  ((i=i+1))
+  done
+  
+fi
