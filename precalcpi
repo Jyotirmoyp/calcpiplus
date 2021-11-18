@@ -6,7 +6,7 @@
 
 odir=${1-}	#working directory
 d=${2-2900}		#depth 216.825,56; 120.458,60; 24.0919,64
-t=${3-10}	#time step
+t=${3-0}	#time step
 np=${4-95}	#number of processors
 depth=${5-2900}
 
