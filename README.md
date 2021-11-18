@@ -7,4 +7,7 @@ The code has two parts.
 
 precalcpi produces required input for in.calcpi.inexv and in.findnn.
 
-post calcpi process the results from calcpi. 
+post calcpi processes the results from calcpi. 
+
+
+If you have any query, please write an email to: jyotirmoy.paul@uni-bayreuth.de
