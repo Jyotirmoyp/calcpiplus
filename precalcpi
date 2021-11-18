@@ -1,0 +1,58 @@
+#!/bin/bash
+
+odir=${1-}	#working directory
+d=${2-2900}		#depth 216.825,56; 120.458,60; 24.0919,64
+t=${3-10}	#time step
+np=${4-95}	#number of processors
+depth=${5-2900}
+
+cd $odir
+mkdir calcpidata
+cd ..	
+
+#rm $odir/calcpidata/tecoord.$d.out $odir/calcpidata/scoord.$d.out $odir/calcpidata/vcoord.$d.out > /dev/null
+#rm *.out
+rm $odir/calcpidata/in.$t.$depth $odir/calcpidata/s.$t.$depth $odir/calcpidata/v.$t.$depth 2> /dev/null
+i=0		#loops around number of processor
+  while [ $i -le $np ];do
+    echo $i
+	## extract data from tar.gz files
+    zcat $odir/coord.$i.gz | gawk '{if(NR>1)print $1, $2, (1-$3)*6371}' > $odir/calcpidata/coord.$i.dat
+    zcat $odir/$t/stress.$i.$t.gz | gawk '{if (NR> 2) print $0}' >  $odir/calcpidata/s.$i.dat
+    zcat $odir/$t/vtk_v.$i.$t.gz > $odir/calcpidata/v.$i.dat
+    zcat $odir/$t/t.$i.$t.gz | gawk '{if (NR> 2) print $1}' > $odir/calcpidata/t.$i.dat
+    zcat $odir/$t/visc.$i.$t.gz | gawk '{if (NR> 1) print $1}' > $odir/calcpidata/e.$i.dat
+
+	## merge temp, visc, stress and velocity with coord files
+    paste $odir/calcpidata/coord.$i.dat $odir/calcpidata/t.$i.dat $odir/calcpidata/e.$i.dat > $odir/calcpidata/tecoord.$i.dat
+    paste $odir/calcpidata/coord.$i.dat $odir/calcpidata/s.$i.dat > $odir/calcpidata/scoord.$i.dat
+    paste $odir/calcpidata/coord.$i.dat $odir/calcpidata/v.$i.dat > $odir/calcpidata/vcoord.$i.dat
+	 
+	## extract each depth slices for each procs
+#echo working on $d depth
+    gawk '{if($3<=d) print $1, $2, $3, $4, $5}' d=$d $odir/calcpidata/tecoord.$i.dat > $odir/calcpidata/te.$i.$d.dat
+    gawk '{if($3<=d) print $4, $5, $6}' d=$d $odir/calcpidata/vcoord.$i.dat > $odir/calcpidata/v.$i.$d.dat
+    gawk '{if($3<=d) print $6, $9, $8, $5, $7, $4}' d=$d $odir/calcpidata/scoord.$i.dat > $odir/calcpidata/s.$i.$d.dat
+    #gawk '{if($3==d) print $4, $5, $6}' d=$d $odir/calcpidata/vcoord.$i.dat > $odir/calcpidata/vcoord.$i.$d.dat
+    
+    rm $odir/calcpidata/coord.$i.dat $odir/calcpidata/v.$i.dat $odir/calcpidata/s.$i.dat
+    rm $odir/calcpidata/t.$i.dat  $odir/calcpidata/e.$i.dat
+    rm $odir/calcpidata/tecoord.$i.dat $odir/calcpidata/scoord.$i.dat $odir/calcpidata/vcoord.$i.dat
+ ((i=i+1))
+done
+
+k=0
+  while [ $k -le $np ];do
+#    echo $k
+	## merge files for each depth
+    cat $odir/calcpidata/te.$k.$d.dat >> $odir/calcpidata/in.$t.$depth
+    cat $odir/calcpidata/v.$k.$d.dat >> $odir/calcpidata/v.$t.$depth
+    cat $odir/calcpidata/s.$k.$d.dat >> $odir/calcpidata/s.$t.$depth
+
+       rm $odir/calcpidata/te.$k.$d.dat $odir/calcpidata/v.$k.$d.dat $odir/calcpidata/s.$k.$d.dat
+  ((k=k+1))
+done
+
+
+
+#cat all depth files to make a global one, written in another code.
