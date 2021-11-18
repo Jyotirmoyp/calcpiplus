@@ -3,6 +3,7 @@
 model=${1-}       #name of the directory
 fname=${2-ehat}  
 odir=${3-aniso}
+np=${4-65}  #number of z nodes
 
 dfile=d65.dat  #check your depth file name
 
@@ -12,7 +13,7 @@ dfile=d65.dat  #check your depth file name
   mkdir aniso
   cd ../..
   i=1
-  while [ $i -le 65 ]
+  while [ $i -le $np ]
   do 
     d=`oneline $i $dfile`
     echo working on $d depth
